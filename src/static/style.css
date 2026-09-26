@@ -1,0 +1,33 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+       background: #f7f7f5; color: #1c1c1a; }
+header { display: flex; justify-content: space-between; align-items: center;
+         padding: 0.8rem 1.4rem; background: #14213d; color: #fff; }
+header a { color: #ffd166; text-decoration: none; margin-right: 1rem; }
+.brand { font-weight: 700; font-size: 1.15rem; }
+.who { color: #c8c8c8; margin-right: 1rem; font-size: 0.9rem; }
+main { max-width: 980px; margin: 1.6rem auto; padding: 0 1.2rem; }
+footer { text-align: center; color: #777; font-size: 0.85rem; padding: 2rem 0; }
+.cards { list-style: none; padding: 0; display: grid;
+         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.card { background: #fff; border: 1px solid #e2e2de; border-radius: 8px; padding: 1rem; }
+.card h2 { margin: 0 0 0.4rem; font-size: 1.1rem; }
+.card a { color: #14213d; text-decoration: none; }
+.meta { color: #6b6b66; font-size: 0.88rem; }
+.filters { display: flex; gap: 0.6rem; margin: 1rem 0 1.4rem; }
+.filters input[type=search] { flex: 1; padding: 0.5rem; }
+.filters select, .filters button { padding: 0.5rem; }
+.stack { display: flex; flex-direction: column; gap: 0.9rem; max-width: 520px; }
+.stack.narrow { max-width: 420px; }
+.stack label { display: flex; flex-direction: column; gap: 0.3rem; font-weight: 500; }
+.stack input, .stack textarea, .stack select { padding: 0.5rem; border: 1px solid #cfcfcb;
+  border-radius: 6px; font: inherit; }
+.inline { display: flex; gap: 0.8rem; align-items: end; flex-wrap: wrap; }
+.inline label { display: flex; flex-direction: column; font-size: 0.9rem; }
+button, .button { background: #14213d; color: #fff; border: 0; border-radius: 6px;
+  padding: 0.55rem 1.1rem; cursor: pointer; text-decoration: none; display: inline-block; }
+.error { color: #9d1c1c; font-weight: 600; }
+table { border-collapse: collapse; width: 100%; background: #fff; margin-bottom: 1.6rem; }
+th, td { text-align: left; padding: 0.5rem 0.7rem; border-bottom: 1px solid #e6e6e2; }
+th { background: #efefec; }
+h2 { margin-top: 2rem; }
