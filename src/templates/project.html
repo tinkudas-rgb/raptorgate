@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block title %}{{ p['title'] }} - RaptorGate{% endblock %}
+{% block content %}
+<h1>{{ p['title'] }}</h1>
+<p class="meta">{{ p['track_name'] }} · team {{ p['team_name'] }} · submitted {{ p['submitted_at'] or 'not yet' }}</p>
+<p>{{ p['summary'] }}</p>
+{% if p['repo_url'] %}<p><a href="{{ p['repo_url'] }}">{{ p['repo_url'] }}</a></p>{% endif %}
+{% if g.user and g.user['role'] == 'participant' %}
+<p><a class="button" href="{{ url_for('edit_project', project_id=p['id']) }}">Edit</a></p>
+{% endif %}
+{% endblock %}
