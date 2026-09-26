@@ -1,0 +1,5 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1>Welcome to {{ team['name'] }}</h1>
+<p>You joined the team. <a href="{{ url_for('gallery') }}">Back to the gallery</a>.</p>
+{% endblock %}
