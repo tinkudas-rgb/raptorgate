@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+{% block title %}Organizer - RaptorGate{% endblock %}
+{% block content %}
+<h1>Organizer: {{ event['name'] }}</h1>
+<p class="meta">Submissions close {{ event['submissions_close'] }} ({{ 'open' if open else 'closed' }})</p>
+
+<h2>Judge progress</h2>
+<table>
+  <tr><th>Judge</th><th>Assigned</th><th>Scored</th><th>Completion</th></tr>
+  {% for j in judges %}
+  <tr>
+    <td>{{ j['name'] }}</td><td>{{ j['assigned'] }}</td><td>{{ j['scored'] }}</td>
+    <td>{{ ((j['scored'] / j['assigned'] * 100) | round(0) | int) if j['assigned'] else 0 }}%</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<h2>Standings (normalised)</h2>
+<p class="meta">Raw averages mix judge bias; the normalised column removes each judge's
+personal scale first. Method: JUDGING.md.</p>
+<table>
+  <tr><th>Project</th><th>Track</th><th>Reviews</th><th>Raw avg</th><th>Normalised</th></tr>
+  {% for p in projects | sort(attribute='title') %}
+  {% set s = standings.get(p['id']) %}
+  <tr>
+    <td>{{ p['title'] }}</td><td>{{ p['track_name'] }}</td>
+    <td>{{ s['reviews'] if s else 0 }}</td>
+    <td>{{ '%.2f' | format(s['raw']) if s else '-' }}</td>
+    <td>{{ '%.2f' | format(s['display']) if s else '-' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% if duplicates %}
+<h2>Data quality</h2>
+<p class="error">Possible duplicate submissions: {{ duplicates | join(', ') }}</p>
+{% endif %}
+
+<h2>Rubric weights</h2>
+<form method="post" action="{{ url_for('set_rubric') }}" class="inline">
+  {% for r in rubric %}
+  <label>{{ r['criterion'] }} <input type="number" step="0.1" min="0.1" name="weight_{{ r['criterion'] }}" value="{{ r['weight'] }}"></label>
+  {% endfor %}
+  <button type="submit">Save weights</button>
+</form>
+
+<h2>Create event</h2>
+<form method="post" action="{{ url_for('create_event') }}" class="stack narrow">
+  <label>Name <input name="name" required></label>
+  <label>Submissions close (ISO 8601 UTC) <input name="submissions_close" placeholder="2026-10-01T18:00:00Z" required></label>
+  <label>Tracks (comma separated) <input name="tracks" placeholder="Web, Hardware, AI"></label>
+  <label>Prizes <input name="prizes" placeholder="1st $800, 2nd $500"></label>
+  <button type="submit">Create event</button>
+</form>
+
+<h2>Assign judge</h2>
+<form method="post" action="{{ url_for('assign_judge') }}" class="inline">
+  <input name="judge_id" placeholder="judge id, e.g. jdg_01" required>
+  <input name="project_id" placeholder="project id, e.g. prj_01" required>
+  <button type="submit">Assign</button>
+</form>
+
+<p><a class="button" href="{{ url_for('api_export_csv') }}">Download results CSV</a></p>
+{% endblock %}
