@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}RaptorGate{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <a class="brand" href="{{ url_for('gallery') }}">RaptorGate</a>
+  <nav>
+    <a href="{{ url_for('gallery') }}">Gallery</a>
+    {% if g.user %}
+      {% if g.user['role'] == 'judge' %}<a href="{{ url_for('judge_dashboard') }}">Judging</a>{% endif %}
+      {% if g.user['role'] in ('organizer', 'admin') %}<a href="{{ url_for('organizer_dashboard') }}">Organizer</a>{% endif %}
+      {% if g.user['role'] == 'participant' %}<a href="{{ url_for('submit_project') }}">Submit</a>{% endif %}
+      <span class="who">{{ g.user['name'] }} ({{ g.user['role'] }})</span>
+      <a href="{{ url_for('logout') }}">Log out</a>
+    {% else %}
+      <a href="{{ url_for('login') }}">Log in</a>
+    {% endif %}
+  </nav>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer>RaptorGate - self-hosted hackathon submissions and judging. MIT licensed.</footer>
+</body>
+</html>
