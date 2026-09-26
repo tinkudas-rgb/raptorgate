@@ -1,0 +1,8 @@
+services:
+  portal:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      RAPTORGATE_DB: /app/raptorgate.db
+      RAPTORGATE_FIXTURES: /app/fixtures.json
