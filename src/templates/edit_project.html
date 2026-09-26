@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block title %}Edit {{ p['title'] }} - RaptorGate{% endblock %}
+{% block content %}
+<h1>Edit {{ p['title'] }}</h1>
+{% if not open %}
+<p class="error">The submission window closed at {{ event['submissions_close'] }}. This project is locked.</p>
+{% else %}
+<form method="post" class="stack">
+  <label>Title <input name="title" value="{{ p['title'] }}" required></label>
+  <label>Summary <textarea name="summary" rows="4">{{ p['summary'] }}</textarea></label>
+  <label>Repo URL <input type="url" name="repo_url" value="{{ p['repo_url'] }}"></label>
+  <label>Track
+    <select name="track_id">
+      {% for t in tracks %}
+      <option value="{{ t['id'] }}" {{ 'selected' if p['track_id'] == t['id'] }}>{{ t['name'] }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit" name="action" value="draft">Save draft</button>
+  <button type="submit" name="action" value="submit">Submit</button>
+</form>
+{% endif %}
+{% endblock %}
