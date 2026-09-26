@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% block title %}Gallery - RaptorGate{% endblock %}
+{% block content %}
+<h1>{{ event['name'] if event else 'Projects' }}</h1>
+<form method="get" class="filters">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search title or summary">
+  <select name="track">
+    <option value="">All tracks</option>
+    {% for t in tracks %}
+    <option value="{{ t['id'] }}" {{ 'selected' if track == t['id'] }}>{{ t['name'] }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit">Filter</button>
+</form>
+{% if projects %}
+<ul class="cards">
+  {% for p in projects %}
+  <li class="card">
+    <a href="{{ url_for('project_detail', project_id=p['id']) }}"><h2>{{ p['title'] }}</h2></a>
+    <p>{{ p['summary'] }}</p>
+    <p class="meta">{{ p['track_name'] }} · {{ p['team_name'] }} · {{ p['review_count'] }} review{{ 's' if p['review_count'] != 1 }}</p>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>No projects match.</p>
+{% endif %}
+{% endblock %}
