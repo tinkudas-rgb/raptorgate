@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+{% block title %}Judging - RaptorGate{% endblock %}
+{% block content %}
+<h1>Your assignments</h1>
+{% if assignments %}
+<table>
+  <tr><th>Project</th><th>Track</th><th>Status</th></tr>
+  {% for a in assignments %}
+  <tr>
+    <td><a href="{{ url_for('score_project', project_id=a['id']) }}">{{ a['title'] }}</a></td>
+    <td>{{ a['track_name'] }}</td>
+    <td>{{ 'scored' if a['scored'] else 'pending' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No assignments yet. The organizer assigns projects from the dashboard.</p>
+{% endif %}
+<p class="meta">You can only ever see your own scores. Peer scores are refused by the backend.</p>
+{% endblock %}
