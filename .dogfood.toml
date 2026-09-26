@@ -1,0 +1,24 @@
+# .dogfood.toml - where the acceptance checker finds things in RaptorGate.
+# Run: python3 run.py .dogfood.toml > acceptance-report.txt
+
+[portal]
+base_url = "http://localhost:8080"
+
+[tiers]
+claimed = ["T1", "T2"]
+pitch = "Self-hosted hackathon submission and judging portal: roles, deadlines, weighted rubrics, backend-enforced judge isolation and documented score normalisation."
+
+[auth]
+# Fixed demo sessions, printed by the seed on every fresh boot.
+organizer   = "Cookie: session=org_7f2a"
+judge_a     = "Cookie: session=jdg_a_91bc"
+judge_b     = "Cookie: session=jdg_b_44de"
+participant = "Cookie: session=prt_2e88"
+
+[routes]
+gallery      = "/projects"
+submit       = "/projects/new"
+judge_scores = "/api/judge/scores"
+# The URL that returns judge_a's scores; the checker visits it as judge_b.
+peer_scores  = "/api/judges/jdg_24/scores"
+csv_export   = "/api/export.csv"
