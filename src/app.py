@@ -6,9 +6,11 @@ shared fixtures and prints demo logins. See README.md.
 
 import functools
 import json
+import math
 import re
 import secrets
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from flask import (Flask, Response, abort, g, jsonify, redirect,
                    render_template, request, url_for)
@@ -55,6 +57,30 @@ def create_app(db_path="raptorgate.db", fixtures_path="fixtures.json"):
     @app.before_request
     def load_user():
         g.user = current_user()
+
+    @app.before_request
+    def csrf_origin_check():
+        """Reject cross-site form writes (CSRF).
+
+        Browsers always send Origin on form POST navigations, so an
+        Origin (or, failing that, Referer) whose host is not ours marks
+        the write as forged. JSON API writes are exempt: a cross-site
+        JSON POST cannot be sent from a browser form without a CORS
+        preflight. Requests with neither header (curl, the acceptance
+        checker) are allowed so the seeded demo keeps working.
+        """
+        if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
+            return None
+        if request.is_json:
+            return None
+        source = request.headers.get("Origin") or request.headers.get("Referer")
+        if not source:
+            return None
+        host = urlparse(source).netloc
+        if host and host != request.host:
+            return render_template("error.html", code=403,
+                                   message="Cross-site form submission blocked."), 403
+        return None
 
     def require_roles(*roles):
         """Backend role gate. 401 when anonymous, 403 when the wrong role.
@@ -104,10 +130,10 @@ def create_app(db_path="raptorgate.db", fixtures_path="fixtures.json"):
             "action": (data.get("action") or "submit").strip(),
         }
 
-    def user_team(user):
+    def user_team(user, event_id):
         return get_db().execute(
             "SELECT t.* FROM teams t JOIN team_members m ON m.team_id = t.id"
-            " WHERE m.user_email = ?", (user["email"],),
+            " WHERE m.user_email = ? AND t.event_id = ?", (user["email"], event_id),
         ).fetchone()
 
     # ---------------- public ----------------
@@ -146,6 +172,16 @@ def create_app(db_path="raptorgate.db", fixtures_path="fixtures.json"):
         ).fetchone()
         if p is None:
             abort(404)
+        if p["status"] == "draft":
+            if g.user is None:
+                abort(404)
+            if g.user["role"] not in ("organizer", "admin"):
+                membership = get_db().execute(
+                    "SELECT 1 FROM team_members WHERE team_id = ? AND user_email = ?",
+                    (p["team_id"], g.user["email"]),
+                ).fetchone()
+                if membership is None:
+                    abort(404)
         return render_template("project.html", p=p)
 
     @app.route("/login", methods=["GET", "POST"])
@@ -169,7 +205,7 @@ def create_app(db_path="raptorgate.db", fixtures_path="fixtures.json"):
             error = "Unknown email or password."
         return render_template("login.html", error=error)
 
-    @app.route("/logout")
+    @app.route("/logout", methods=["POST"])
     def logout():
         token = request.cookies.get("session", "")
         if token:
@@ -210,7 +246,17 @@ def create_app(db_path="raptorgate.db", fixtures_path="fixtures.json"):
             if not fields["title"]:
                 return render_template("error.html", code=400,
                                        message="A title is required."), 400
-            team = user_team(g.user)
+            track = (get_db().execute(
+                "SELECT id FROM tracks WHERE id = ? AND event_id = ?",
+                (fields["track_id"], event_id),
+            ).fetchone() if fields["track_id"] else get_db().execute(
+                "SELECT id FROM tracks WHERE event_id = ? ORDER BY id LIMIT 1",
+                (event_id,),
+            ).fetchone())
+            if track is None:
+                return render_template("error.html", code=400,
+                                       message="Choose a track for this event."), 400
+            team = user_team(g.user, event_id)
             if team is None:
                 team_id = f"tm_{secrets.token_hex(4)}"
                 get_db().execute(
@@ -223,9 +269,7 @@ def create_app(db_path="raptorgate.db", fixtures_path="fixtures.json"):
                 )
             else:
                 team_id = team["id"]
-            track_id = fields["track_id"] or get_db().execute(
-                "SELECT id FROM tracks WHERE event_id = ? ORDER BY id LIMIT 1",
-                (event_id,)).fetchone()["id"]
+            track_id = track["id"]
             project_id = f"prj_{secrets.token_hex(4)}"
             status = "draft" if fields["action"] == "draft" else "submitted"
             get_db().execute(
@@ -251,7 +295,7 @@ def create_app(db_path="raptorgate.db", fixtures_path="fixtures.json"):
                              (project_id,)).fetchone()
         if p is None:
             abort(404)
-        team = user_team(g.user)
+        team = user_team(g.user, p["event_id"])
         if g.user["role"] == "participant" and (team is None or team["id"] != p["team_id"]):
             return render_template("error.html", code=403,
                                    message="Only a member of the team can edit this project."), 403
@@ -261,6 +305,12 @@ def create_app(db_path="raptorgate.db", fixtures_path="fixtures.json"):
                 return render_template("error.html", code=403,
                                        message="The submission window has closed."), 403
             fields = submission_fields()
+            if fields["track_id"] and get_db().execute(
+                "SELECT 1 FROM tracks WHERE id = ? AND event_id = ?",
+                (fields["track_id"], p["event_id"]),
+            ).fetchone() is None:
+                return render_template("error.html", code=400,
+                                       message="Choose a track for this event."), 400
             status = "draft" if fields["action"] == "draft" else "submitted"
             get_db().execute(
                 "UPDATE projects SET title = ?, summary = ?, repo_url = ?,"
@@ -275,19 +325,23 @@ def create_app(db_path="raptorgate.db", fixtures_path="fixtures.json"):
         return render_template("edit_project.html", p=p, event=event, tracks=tracks,
                                open=event_open(event))
 
-    @app.route("/teams/join/<invite_code>")
+    @app.route("/teams/join/<invite_code>", methods=["GET", "POST"])
     @require_roles("participant", "organizer", "admin")
     def join_team(invite_code):
         team = get_db().execute("SELECT * FROM teams WHERE invite_code = ?",
                                 (invite_code,)).fetchone()
         if team is None:
             abort(404)
-        get_db().execute(
-            "INSERT OR IGNORE INTO team_members (team_id, user_email) VALUES (?, ?)",
-            (team["id"], g.user["email"]),
-        )
-        get_db().commit()
-        return render_template("joined.html", team=team)
+        if request.method == "POST":
+            get_db().execute(
+                "INSERT OR IGNORE INTO team_members (team_id, user_email) VALUES (?, ?)",
+                (team["id"], g.user["email"]),
+            )
+            get_db().commit()
+            return render_template("joined.html", team=team)
+        # GET only confirms - the join itself is a POST, so invite links
+        # cannot be triggered by prefetchers or cross-site image tags.
+        return render_template("join_confirm.html", team=team)
 
     # ---------------- judge ----------------
 
@@ -317,6 +371,21 @@ def create_app(db_path="raptorgate.db", fixtures_path="fixtures.json"):
         ).fetchone()
         if p is None:
             abort(404)
+        # A judge may score only a project they are assigned to, on a track
+        # they cover, and not submitted by their own team. Assignments are
+        # made by the organizer, never created by scoring.
+        assigned = conn.execute(
+            "SELECT 1 FROM judge_assignments WHERE judge_id = ? AND project_id = ?",
+            (g.user["id"], project_id)).fetchone()
+        on_track = conn.execute(
+            "SELECT 1 FROM judge_tracks WHERE user_id = ? AND track_id = ?",
+            (g.user["id"], p["track_id"])).fetchone()
+        own_team = conn.execute(
+            "SELECT 1 FROM team_members WHERE team_id = ? AND user_email = ?",
+            (p["team_id"], g.user["email"])).fetchone()
+        if not assigned or not on_track or own_team:
+            return render_template("error.html", code=403,
+                                   message="You are not assigned to judge this project."), 403
         rubric = conn.execute(
             "SELECT criterion, weight FROM rubric WHERE event_id = ? ORDER BY criterion",
             (p["event_id"],)).fetchall()
@@ -344,10 +413,6 @@ def create_app(db_path="raptorgate.db", fixtures_path="fixtures.json"):
                 (g.user["id"], project_id, json.dumps(criteria),
                  request.form.get("comment", "").strip(),
                  datetime.now(timezone.utc).isoformat()),
-            )
-            conn.execute(
-                "INSERT OR IGNORE INTO judge_assignments (judge_id, project_id) VALUES (?, ?)",
-                (g.user["id"], project_id),
             )
             conn.commit()
             return redirect(url_for("judge_dashboard"))
@@ -434,18 +499,20 @@ def create_app(db_path="raptorgate.db", fixtures_path="fixtures.json"):
     def set_rubric():
         conn = get_db()
         event = get_event()
+        updates = []
         for row in conn.execute("SELECT criterion FROM rubric WHERE event_id = ?",
                                 (event["id"],)).fetchall():
             raw = request.form.get(f"weight_{row['criterion']}", "")
             try:
                 weight = float(raw)
-                if weight <= 0:
+                if not math.isfinite(weight) or not 1e-6 <= weight <= 1e6:
                     raise ValueError
             except ValueError:
                 return render_template("error.html", code=400,
-                                       message="Weights must be positive numbers."), 400
-            conn.execute("UPDATE rubric SET weight = ? WHERE event_id = ? AND criterion = ?",
-                         (weight, event["id"], row["criterion"]))
+                                       message="Weights must be finite numbers between 0.000001 and 1000000."), 400
+            updates.append((weight, event["id"], row["criterion"]))
+        conn.executemany("UPDATE rubric SET weight = ? WHERE event_id = ? AND criterion = ?",
+                         updates)
         conn.commit()
         return redirect(url_for("organizer_dashboard"))
 

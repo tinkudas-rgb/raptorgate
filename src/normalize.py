@@ -23,13 +23,21 @@ Method (defended in JUDGING.md):
 """
 
 import json
+import math
 import statistics
 
 
 def weighted_total(criteria, weights):
     """One review -> one number, honouring the rubric weights."""
-    num = sum(weights.get(c, 1.0) * v for c, v in criteria.items())
-    den = sum(weights.get(c, 1.0) for c in criteria) or 1.0
+    # Old/imported databases may contain invalid weights. Ignore those rather
+    # than letting a corrupt rubric take down standings and CSV export.
+    safe_weights = {
+        c: w if isinstance(w, (int, float)) and math.isfinite(w)
+        and 1e-6 <= w <= 1e6 else 1.0
+        for c, w in ((c, weights.get(c, 1.0)) for c in criteria)
+    }
+    num = sum(safe_weights[c] * v for c, v in criteria.items())
+    den = sum(safe_weights.values()) or 1.0
     return num / den
 
 

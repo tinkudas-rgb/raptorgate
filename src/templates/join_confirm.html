@@ -1,0 +1,9 @@
+{% extends "layout.html" %}
+{% block title %}Join {{ team['name'] }} - RaptorGate{% endblock %}
+{% block content %}
+<h1>Join {{ team['name'] }}?</h1>
+<p>Anyone with this invite link can join the team. Confirm to join.</p>
+<form method="post" action="{{ url_for('join_team', invite_code=team['invite_code']) }}">
+  <button type="submit">Join team</button>
+</form>
+{% endblock %}

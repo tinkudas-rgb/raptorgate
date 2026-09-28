@@ -1,5 +1,5 @@
 DOGFOOD 2026 acceptance report
-portal: http://localhost:8090
+portal: http://localhost:18094
 claimed: T1 T2
 fixtures: fixtures.json
 
@@ -12,3 +12,10 @@ T2  participant blocked ............... PASS
 T2  csv export works .................. PASS
 
 claimed T1 T2, verified T1 T2
+
+Verification note (2026-09-28, isolated fresh boot on port 18094):
+The seven official T1/T2 checks above passed after the security fixes.
+49/49 local pytest checks passed. This does not verify Docker Compose,
+which was unavailable in the test environment. Form writes reject a foreign
+Origin/Referer, but this is not token-based CSRF protection: headerless
+clients and JSON requests remain exempt for checker/demo compatibility.
